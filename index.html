@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FloodOrbit AI | Flood Intelligence Dashboard</title>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              950: '#070a12',
+              900: '#0b101d',
+              850: '#101728',
+              800: '#162035',
+              700: '#1d2b45',
+              border: '#1f2e4a'
+            },
+            accent: {
+              blue: '#2563eb',
+              cyan: '#00d2ff',
+              red: '#ef4444',
+              orange: '#f97316',
+              amber: '#f59e0b',
+              purple: '#a855f7'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Leaflet GIS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      background-color: #070a12;
+      color: #94a3b8;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* Page Enter Animation */
+    .tab-content {
+      animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #070a12; }
+    ::-webkit-scrollbar-thumb { background: #1f2e4a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00d2ff; }
+
+    /* Map Element */
+    #gis-map {
+      width: 100% !important;
+      height: 720px !important;
+      background-color: #070a12 !important;
+      display: block !important;
+    }
+
+    /* Geographic Map Tooltips Locked into Coordinates */
+    .leaflet-tooltip.pinned-geo-tag {
+      background: rgba(11, 16, 29, 0.95) !important;
+      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+      color: #ffffff !important;
+      font-size: 10.5px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      padding: 3px 8px !important;
+      border-radius: 4px !important;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8) !important;
+      white-space: nowrap !important;
+    }
+    .leaflet-tooltip.pinned-geo-tag::before {
+      display: none !important;
+    }
+    .leaflet-tooltip.pinned-geo-tag.alert-red {
+      border-color: #ef4444 !important;
+      color: #fca5a5 !important;
+    }
+    .leaflet-tooltip.pinned-geo-tag.alert-blue {
+      border-color: #38bdf8 !important;
+      color: #bae6fd !important;
+    }
+
+    /* Vertical Map Split Slider */
+    .vertical-slider-track {
+      position: absolute;
+      right: 18px;
+      top: 50px;
+      bottom: 50px;
+      width: 6px;
+      background: rgba(30, 48, 77, 0.85);
+      border-radius: 999px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 0 12px rgba(0,0,0,0.6);
+    }
+    .vertical-slider-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.8), 0 2px 4px rgba(0,0,0,0.5);
+      cursor: ns-resize;
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      left: 50%;
+      transition: top 0.05s linear;
+    }
+
+    /* Leaflet Popups */
+    .leaflet-popup-content-wrapper {
+      background: rgba(11, 16, 29, 0.96) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid #00d2ff !important;
+      border-radius: 6px !important;
+      font-size: 11px !important;
+      box-shadow: 0 0 15px rgba(0, 210, 255, 0.3) !important;
+    }
+    .leaflet-popup-tip {
+      background: rgba(11, 16, 29, 0.96) !important;
+      border: 1px solid #00d2ff !important;
+    }
+
+    /* Left Map Toolbar */
+    .map-tool-btn {
+      width: 32px;
+      height: 32px;
+      background: rgba(16, 23, 40, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .map-tool-btn:hover {
+      background: #1e293b;
+      color: #00d2ff;
+      border-color: #00d2ff;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printable-sitrep, #printable-sitrep * { visibility: visible; }
+      #printable-sitrep { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; background: #fff !important; color: #000 !important; }
+    }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-300 min-h-screen flex flex-col antialiased text-xs select-none">
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="bg-dark-900 border-b border-dark-border px-4 py-2.5">
+    <div class="max-w-[1720px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Requested Subtitle Update -->
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 text-lg shadow-sm">
+          <i class="fa-solid fa-satellite-dish"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base text-white tracking-wide">FloodOrbit AI</h1>
+          <p class="text-[11px] text-slate-400 font-mono tracking-wider uppercase">FLOOD INTELLIGENCE DASHBOARD.</p>
+        </div>
+      </div>
+
+      <!-- Live Corridor Pill Badge -->
+      <div class="flex items-center space-x-2 bg-dark-850 border border-red-500/30 px-3.5 py-1.5 rounded-full shadow-sm shadow-red-950/40">
+        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+        <span class="text-[11px] font-semibold text-slate-200">
+          <b class="text-red-400">LIVE:</b> Bhote Koshi–Trishuli River Corridor (Case Study: Aug 2026)
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= NAVIGATION TABS ================= -->
+  <nav class="bg-dark-900/90 border-b border-dark-border px-4 py-1.5">
+    <div class="max-w-[1720px] mx-auto flex items-center space-x-2 overflow-x-auto">
+      <button onclick="switchTab('map-view')" id="tab-btn-map-view" class="tab-btn px-4 py-1.5 rounded-md bg-blue-600 text-white font-medium text-xs flex items-center gap-2 shadow-sm shadow-blue-500/30 transition">
+        <i class="fa-solid fa-map"></i><span>Overview & Live Map</span>
+      </button>
+      <button onclick="switchTab('ai-copilot')" id="tab-btn-ai-copilot" class="tab-btn px-4 py-1.5 rounded-md bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-dark-border text-xs flex items-center gap-2 transition">
+        <i class="fa-solid fa-robot"></i><span>AI Copilot & Model</span>
+      </button>
+      <button onclick="switchTab('network-tracer')" id="tab-btn-network-tracer" class="tab-btn px-4 py-1.5 rounded-md bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-dark-border text-xs flex items-center gap-2 transition">
+        <i class="fa-solid fa-road-barrier"></i><span>Cut-off Settlements</span>
+      </button>
+      <button onclick="switchTab('validation')" id="tab-btn-validation" class="tab-btn px-4 py-1.5 rounded-md bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-dark-border text-xs flex items-center gap-2 transition">
+        <i class="fa-solid fa-chart-column"></i><span>EMSR927 Validation</span>
+      </button>
+      <button onclick="switchTab('reports')" id="tab-btn-reports" class="tab-btn px-4 py-1.5 rounded-md bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-dark-border text-xs flex items-center gap-2 transition">
+        <i class="fa-solid fa-file-invoice"></i><span>SitRep & Deliverables</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= MAIN DASHBOARD CONTAINER ================= -->
+  <main class="flex-1 w-full max-w-[1720px] mx-auto p-3 flex flex-col gap-3">
+
+    <!-- ================= PAGE 1: OVERVIEW & LIVE MAP ================= -->
+    <section id="page-map-view" class="tab-content flex flex-col lg:flex-row gap-3">
+      
+      <!-- LEFT / CENTER MAP CONTAINER -->
+      <div class="lg:w-[72%] bg-dark-900 border border-dark-border rounded-lg relative overflow-hidden h-[730px]">
+        <div id="gis-map"></div>
+
+        <!-- Left Toolbar -->
+        <div class="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
+          <button onclick="if(map) map.zoomIn();" class="map-tool-btn" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+          <button onclick="if(map) map.zoomOut();" class="map-tool-btn" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+          <div class="w-full h-px bg-dark-border my-0.5"></div>
+          <button onclick="toggleFullscreen()" class="map-tool-btn" title="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+          <button onclick="resetToNepalAOI()" class="map-tool-btn text-blue-400" title="Reset AoI"><i class="fa-solid fa-crosshairs"></i></button>
+          <button onclick="toggleLayer('flood')" class="map-tool-btn" title="Toggle Flood Layer"><i class="fa-solid fa-layer-group"></i></button>
+        </div>
+
+        <!-- Vertical Crossfade Slider Track -->
+        <div class="vertical-slider-track" id="vertical-slider-track">
+          <div class="text-[9px] font-mono text-cyan-400 mt-1 pointer-events-none"><i class="fa-solid fa-snowflake"></i></div>
+          <div class="vertical-slider-thumb" id="vertical-slider-thumb"></div>
+          <div class="text-[9px] font-mono text-slate-300 mb-1 pointer-events-none" id="slider-percentage-label">36</div>
+        </div>
+
+        <!-- Bottom-Left Tactical Legend -->
+        <div class="absolute bottom-4 left-4 z-[1000] bg-dark-900/90 backdrop-blur-md border border-dark-border/80 p-3 rounded-lg shadow-xl text-[11px] font-sans space-y-1.5 min-w-[210px] pointer-events-auto">
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm bg-red-600 flex items-center justify-center text-[8px] text-white font-bold"><i class="fa-solid fa-skull"></i></span>
+            <span class="text-slate-200">Confirmed Deaths</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm bg-amber-500/20 text-amber-400 flex items-center justify-center text-[9px]"><i class="fa-solid fa-triangle-exclamation"></i></span>
+            <span class="text-slate-200">Missing</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm bg-blue-500/80 border border-blue-400"></span>
+            <span class="text-slate-200">Predicted flooded Zones</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm bg-red-600/70 border border-red-400"></span>
+            <span class="text-slate-200">Avalanche/Glacier Collapse Zone</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-red-500 border border-white"></span>
+            <span class="text-slate-200">Severed Bridges</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm bg-amber-600/30 border border-amber-500"></span>
+            <span class="text-slate-200">Isolated Settlements</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-1.5 bg-red-500 border border-dashed border-red-300"></span>
+            <span class="text-slate-200">Blocked/Severed OSM Roads</span>
+          </div>
+        </div>
+
+        <div class="absolute bottom-1 right-1 z-[999] text-[9px] text-slate-500 pointer-events-none pr-1">
+          © OpenStreetMap contributors
+        </div>
+      </div>
+
+      <!-- RIGHT SIDEBAR HUD -->
+      <div class="lg:w-[28%] flex flex-col gap-3">
+        
+        <!-- 2x3 Metric Grid -->
+        <div class="grid grid-cols-3 gap-2">
+          <div class="bg-dark-900 border border-dark-border p-2.5 rounded-lg text-center">
+            <div class="text-xl font-bold font-mono text-red-500">1,342</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Confirmed Deaths</div>
+          </div>
+          <div class="bg-dark-900 border border-dark-border p-2.5 rounded-lg text-center">
+            <div class="text-xl font-bold font-mono text-blue-400">4,900</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Missing</div>
+          </div>
+          <div class="bg-dark-900 border border-dark-border p-2.5 rounded-lg text-center">
+            <div class="text-xl font-bold font-mono text-red-400">142km</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Damaged Road</div>
+          </div>
+          <div class="bg-dark-900 border border-dark-border p-2.5 rounded-lg text-center">
+            <div class="text-xl font-bold font-mono text-amber-400">142km</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Isolated Road</div>
+          </div>
+          <div class="bg-dark-900 border border-dark-border p-2.5 rounded-lg text-center">
+            <div class="text-xl font-bold font-mono text-blue-400">142km</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Road Severed</div>
+          </div>
+          <div class="bg-dark-900 border border-dark-border p-2.5 rounded-lg text-center">
+            <div class="text-xl font-bold font-mono text-red-500">14</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Severed Bridges</div>
+          </div>
+        </div>
+
+        <!-- AI Copilot Response Card -->
+        <div class="bg-dark-900 border border-dark-border p-3.5 rounded-lg flex flex-col flex-1">
+          <div class="flex items-center justify-between border-b border-dark-border pb-2 mb-2">
+            <span class="font-semibold text-xs text-white flex items-center gap-1.5">
+              <i class="fa-solid fa-robot text-blue-400"></i> AI Copilot Response
+            </span>
+            <div class="flex items-center gap-1.5 text-[10px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-slate-400 font-mono">Grounded RAG</span>
+            </div>
+          </div>
+
+          <div class="space-y-1 text-xs text-slate-300 leading-relaxed font-sans mb-3">
+            <div class="text-[11px] font-bold text-blue-400 font-mono uppercase tracking-wide">English Output:</div>
+            <p class="text-[11px] text-slate-300">
+              <b>1,342 confirmed deaths</b> and <b>4,900 reported missing</b>. Predicted flooded footprint indicates total structural washout of 14 bridges along the Bhote Koshi–Trishuli corridor, isolating 15,010 civilians in Tatopani and Larcha.
+            </p>
+          </div>
+
+          <div class="space-y-1 text-xs text-slate-300 leading-relaxed font-sans pt-2 border-t border-dark-border/60">
+            <div class="text-[11px] font-bold text-amber-400 font-mono uppercase tracking-wide">English / नेपाली:</div>
+            <p class="text-[11px] text-slate-300">
+              <b>आधिकारिक विपद् तथ्यांक:</b> १,३४२ मृत्यु पुष्टि, ४,९०० बेपत्ता। अरनिको राजमार्गका १४ वटा मुख्य पुलहरू बग्दा तातोपानी र लार्चाका बासिन्दा पूर्ण सम्पर्कविहीन छन्।
+            </p>
+          </div>
+
+          <div class="mt-auto pt-2 flex items-center justify-between border-t border-dark-border/50 text-[10px]">
+            <span class="text-slate-500 font-mono">Model: KuroSiwo SAR + WorldDEM</span>
+            <button onclick="switchTab('ai-copilot')" class="text-blue-400 hover:text-blue-300 font-medium">Open Full Terminal &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Glacier Collapse Elevation Graph -->
+        <div class="bg-dark-900 border border-dark-border p-3.5 rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-semibold text-xs text-white flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 bg-blue-500 rounded-sm"></span> Glacier Collapse run-out Elevation
+            </span>
+            <span class="text-[9px] font-mono text-cyan-400">DEM-30m Profile</span>
+          </div>
+
+          <div class="h-36 w-full">
+            <canvas id="miniElevationChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= PAGE 2: AI COPILOT & INTERACTIVE MODEL METRICS ================= -->
+    <section id="page-ai-copilot" class="tab-content hidden flex-col gap-3">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        
+        <!-- Terminal Chat Window -->
+        <div class="lg:col-span-2 bg-dark-900 border border-dark-border rounded-lg flex flex-col h-[740px] font-mono">
+          <div class="p-3 border-b border-dark-border bg-dark-850 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-terminal text-cyan-400"></i>
+              <span class="font-bold text-white text-xs uppercase tracking-wider">AERIS GROUNDED COPILOT // ZERO-HALLUCINATION TERMINAL</span>
+              <span class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">VERIFIED RAG</span>
+            </div>
+            
+            <button onclick="toggleCopilotLanguage()" class="px-2.5 py-1 rounded bg-dark-950 border border-dark-border hover:border-cyan-400 text-slate-300 text-[10px] transition">
+              <span id="copilot-lang-text">LANGUAGE: EN</span>
+            </button>
+          </div>
+
+          <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs leading-relaxed">
+            <div class="p-3 rounded bg-dark-950/60 border border-dark-border text-slate-300 space-y-1">
+              <div class="text-cyan-400 font-bold">[SYS_INIT]: FLOODORBIT AI COGNITIVE COPILOT ONLINE</div>
+              <p>Ground truth database active: August 2026 Trishuli/Bhote Koshi GLOF Dataset.</p>
+              <p class="text-slate-400 text-[11px]">Inquire about broken bridges, severed road length (km), isolated populations by village, or KuroSiwo SAR model metrics.</p>
+            </div>
+          </div>
+
+          <div class="px-3 py-2 border-t border-dark-border bg-dark-950/50 flex items-center gap-2 overflow-x-auto text-[11px]">
+            <span class="text-slate-500 shrink-0 uppercase">[QUICK_QUERIES]:</span>
+            <button onclick="sendQuickPrompt('What is the total casualty and severed road distance?')" class="px-2.5 py-1 rounded bg-dark-850 border border-dark-border hover:border-cyan-400 text-slate-300 whitespace-nowrap transition">CASUALTY & ROAD BREACH</button>
+            <button onclick="sendQuickPrompt('Which bridges are completely destroyed along the Araniko Highway?')" class="px-2.5 py-1 rounded bg-dark-850 border border-dark-border hover:border-cyan-400 text-slate-300 whitespace-nowrap transition">BRIDGE DESTRUCTION LOG</button>
+            <button onclick="sendQuickPrompt('Larcha ra Tatopani ma kati manis asurakshit chan? (Nepali)')" class="px-2.5 py-1 rounded bg-dark-850 border border-dark-border hover:border-cyan-400 text-cyan-300 whitespace-nowrap transition">लार्चा र तातोपानी अवस्था</button>
+            <button onclick="sendQuickPrompt('What is the current KuroSiwo SAR model IoU and F1-score?')" class="px-2.5 py-1 rounded bg-dark-850 border border-dark-border hover:border-cyan-400 text-slate-300 whitespace-nowrap transition">MODEL VALIDATION IOU</button>
+          </div>
+
+          <div class="p-3 border-t border-dark-border bg-dark-850/50 flex items-center gap-2">
+            <span class="text-cyan-400 font-bold">&gt;</span>
+            <input type="text" id="copilot-input" onkeydown="if(event.key==='Enter') executeCopilotQuery()" placeholder="Type emergency inquiry (e.g., 'Report isolated population in Larcha')..." class="flex-1 bg-dark-950 border border-dark-border rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-400">
+            <button onclick="executeCopilotQuery()" class="px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-500 transition uppercase text-xs">TRANSMIT</button>
+          </div>
+        </div>
+
+        <!-- RIGHT SIDE: DYNAMIC KUROSIWO SAR METRICS PANEL -->
+        <div class="bg-dark-900 border border-dark-border rounded-lg p-4 flex flex-col gap-3 font-mono">
+          <div class="border-b border-dark-border pb-2 flex justify-between items-center">
+            <span class="text-sm font-bold text-white uppercase tracking-wider">KUROSIWO SAR PIPELINE</span>
+            <span id="model-status-badge" class="text-[10px] text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 font-bold">FINE-TUNED</span>
+          </div>
+
+          <!-- Interactive Model Architecture Selector -->
+          <div class="flex items-center gap-1.5 text-[10px] bg-dark-950 p-1 rounded border border-dark-border">
+            <button onclick="selectModelPreset('finetuned')" id="btn-model-finetuned" class="flex-1 py-1 px-1.5 rounded bg-blue-600 text-white font-bold transition">S1+WorldDEM</button>
+            <button onclick="selectModelPreset('baseline')" id="btn-model-baseline" class="flex-1 py-1 px-1.5 rounded text-slate-400 hover:text-white transition">Baseline KuroSiwo</button>
+            <button onclick="selectModelPreset('otsu')" id="btn-model-otsu" class="flex-1 py-1 px-1.5 rounded text-slate-400 hover:text-white transition">Otsu Threshold</button>
+          </div>
+
+          <!-- Dynamic 4-Metric Grid -->
+          <div class="grid grid-cols-2 gap-2 text-center text-xs my-1">
+            <div class="p-2.5 rounded bg-dark-950/70 border border-dark-border">
+              <div class="text-slate-400 text-[10px]">OVERALL IoU</div>
+              <div id="metric-iou" class="text-xl font-bold text-cyan-400 transition-all duration-300">0.842</div>
+            </div>
+            <div class="p-2.5 rounded bg-dark-950/70 border border-dark-border">
+              <div class="text-slate-400 text-[10px]">F1 COEFF</div>
+              <div id="metric-f1" class="text-xl font-bold text-emerald-400 transition-all duration-300">0.914</div>
+            </div>
+            <div class="p-2.5 rounded bg-dark-950/70 border border-dark-border">
+              <div class="text-slate-400 text-[10px]">INFERENCE SPEED</div>
+              <div id="metric-speed" class="text-xl font-bold text-amber-400 transition-all duration-300">3.24 s</div>
+            </div>
+            <div class="p-2.5 rounded bg-dark-950/70 border border-dark-border">
+              <div class="text-slate-400 text-[10px]">COHERENCE DROP</div>
+              <div id="metric-coherence" class="text-xl font-bold text-red-500 transition-all duration-300">-6.8 dB</div>
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-400 font-sans leading-relaxed">
+            Neural segmentation pipeline combining Sentinel-1 dual-pol (VV/VH) backscatter with Copernicus WorldDEM-30 slope correction to eliminate alpine terrain shadow false-positives along steep canyon walls.
+          </p>
+
+          <!-- Interactive Training Epoch Checkpoint Slider -->
+          <div class="p-2.5 rounded bg-dark-950 border border-dark-border space-y-1.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-300 font-bold">Training Epoch Checkpoint:</span>
+              <span id="epoch-label" class="text-cyan-400 font-bold font-mono">Epoch 30 / 30</span>
+            </div>
+            <input type="range" id="epoch-slider" min="1" max="30" value="30" oninput="updateTrainingEpoch(this.value)" class="w-full accent-cyan-400 cursor-pointer">
+            <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+              <span>Ep 1 (Raw)</span>
+              <span>Ep 15 (Mid)</span>
+              <span>Ep 30 (Converged)</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Loss & IoU Graph -->
+          <div class="h-44 w-full rounded bg-dark-950/80 border border-dark-border p-2 mt-auto">
+            <canvas id="trainingLossChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 3: ISOLATION GRAPH & ELEVATION TRACER ================= -->
+    <section id="page-network-tracer" class="tab-content hidden flex-col gap-3 font-mono">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="bg-dark-900 border border-red-500/30 p-4 rounded-lg flex items-center justify-between">
+          <div>
+            <div class="text-xs text-slate-400 uppercase">ISOLATED CIVILIANS</div>
+            <div class="text-2xl font-bold text-red-500 font-mono">15,010</div>
+            <div class="text-[10px] text-slate-400 font-sans mt-0.5">Zero vehicular road bypass access</div>
+          </div>
+          <div class="w-11 h-11 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-xl">
+            <i class="fa-solid fa-person-shelter"></i>
+          </div>
+        </div>
+
+        <div class="bg-dark-900 border border-amber-500/30 p-4 rounded-lg flex items-center justify-between">
+          <div>
+            <div class="text-xs text-slate-400 uppercase">DESTROYED BRIDGES</div>
+            <div class="text-2xl font-bold text-amber-400 font-mono">14 UNITS</div>
+            <div class="text-[10px] text-slate-400 font-sans mt-0.5">Primary superstructures washed away</div>
+          </div>
+          <div class="w-11 h-11 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xl">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+        </div>
+
+        <div class="bg-dark-900 border border-blue-500/30 p-4 rounded-lg flex items-center justify-between">
+          <div>
+            <div class="text-xs text-slate-400 uppercase">HOSPITAL TRANSIT DELAY</div>
+            <div class="text-2xl font-bold text-cyan-400 font-mono">&gt; 48 HOURS</div>
+            <div class="text-[10px] text-slate-400 font-sans mt-0.5">Requires emergency military airbridge</div>
+          </div>
+          <div class="w-11 h-11 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 text-xl">
+            <i class="fa-solid fa-truck-medical"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+        <div class="text-xs font-bold text-slate-200 uppercase mb-3 flex items-center justify-between">
+          <span>UPSTREAM GLACIAL PROFILE [Copernicus WorldDEM-30 Elevation & Runoff Velocity]</span>
+          <span class="text-cyan-400 text-[11px]">SOURCE: 4,500m &rarr; BASIN: 590m</span>
+        </div>
+        <div class="h-64 w-full rounded bg-dark-950 border border-dark-border p-2">
+          <canvas id="elevationProfileChart"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+        <div class="text-xs font-bold text-slate-200 uppercase mb-3">
+          SETTLEMENT ISOLATION GRAPH TOPOLOGY & ROUTING BREACH
+        </div>
+        <div class="overflow-x-auto rounded border border-dark-border">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-dark-850 text-slate-400 border-b border-dark-border uppercase text-[10px]">
+              <tr>
+                <th class="p-3">Settlement</th>
+                <th class="p-3">Sub-Corridor</th>
+                <th class="p-3">Trapped Population</th>
+                <th class="p-3">Primary Severing Asset</th>
+                <th class="p-3">Hospital Access Status</th>
+                <th class="p-3">Immediate Relief Need</th>
+              </tr>
+            </thead>
+            <tbody id="isolated-villages-table-body" class="divide-y divide-dark-border bg-dark-950/50">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 4: SENSOR METRICS & VALIDATION ================= -->
+    <section id="page-validation" class="tab-content hidden flex-col gap-3 font-mono">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+          <div class="text-[10px] text-slate-400 uppercase">PRECISION (LOW FP)</div>
+          <div class="text-2xl font-bold text-cyan-400 font-mono">92.7%</div>
+          <p class="text-[10px] text-slate-400 font-sans mt-1">WorldDEM-30 aspect masks terrain radar shadow.</p>
+        </div>
+        <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+          <div class="text-[10px] text-slate-400 uppercase">RECALL (CAPTURE)</div>
+          <div class="text-2xl font-bold text-emerald-400 font-mono">90.2%</div>
+          <p class="text-[10px] text-slate-400 font-sans mt-1">Recovers debris sediment missed by optical NDWI.</p>
+        </div>
+        <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+          <div class="text-[10px] text-slate-400 uppercase">IoU INTERSECTION</div>
+          <div class="text-2xl font-bold text-amber-400 font-mono">0.842</div>
+          <p class="text-[10px] text-slate-400 font-sans mt-1">Exceeds Copernicus Rapid Mapping 0.80 benchmark.</p>
+        </div>
+        <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+          <div class="text-[10px] text-slate-400 uppercase">INFERENCE SPEEDUP</div>
+          <div class="text-2xl font-bold text-purple-400 font-mono">14.8x</div>
+          <p class="text-[10px] text-slate-400 font-sans mt-1">Automated 4-min pipeline vs 1 hr photo-interpretation.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+          <div class="text-xs font-bold text-slate-200 uppercase mb-3">
+            CONFUSION MATRIX [4,200 BENCHMARK VALIDATION TILES]
+          </div>
+          <div class="grid grid-cols-2 gap-2.5 text-center text-xs">
+            <div class="p-3 rounded bg-dark-950 border border-emerald-500/30">
+              <div class="text-emerald-400 font-bold uppercase text-[10px]">TRUE POSITIVE (TP)</div>
+              <div class="text-lg font-bold text-white mt-1">4,812,400</div>
+              <div class="text-slate-400 text-[10px]">Confirmed Flood/Mudflow</div>
+            </div>
+            <div class="p-3 rounded bg-dark-950 border border-red-500/30">
+              <div class="text-red-500 font-bold uppercase text-[10px]">FALSE POSITIVE (FP)</div>
+              <div class="text-lg font-bold text-white mt-1">378,200</div>
+              <div class="text-slate-400 text-[10px]">Steep Mountain Shadow Misclassified</div>
+            </div>
+            <div class="p-3 rounded bg-dark-950 border border-amber-500/30">
+              <div class="text-amber-400 font-bold uppercase text-[10px]">FALSE NEGATIVE (FN)</div>
+              <div class="text-lg font-bold text-white mt-1">521,600</div>
+              <div class="text-slate-400 text-[10px]">Canopy-Obscured Mudflows</div>
+            </div>
+            <div class="p-3 rounded bg-dark-950 border border-dark-border">
+              <div class="text-slate-400 font-bold uppercase text-[10px]">TRUE NEGATIVE (TN)</div>
+              <div class="text-lg font-bold text-white mt-1">42,109,000</div>
+              <div class="text-slate-400 text-[10px]">Undamaged Terrestrial Terrain</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-dark-900 border border-dark-border p-4 rounded-lg">
+          <div class="text-xs font-bold text-slate-200 uppercase mb-3">
+            MODEL BENCHMARK COMPARISON VS BASELINES
+          </div>
+          <div class="h-56 w-full rounded bg-dark-950 border border-dark-border p-2">
+            <canvas id="modelBenchmarkChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 5: SITREP BRIEF ================= -->
+    <section id="page-reports" class="tab-content hidden flex-col gap-3">
+      <div class="bg-dark-900 border border-dark-border p-3.5 rounded-lg flex items-center justify-between font-mono">
+        <span class="text-xs font-bold uppercase text-slate-200">NDRRMA OPERATIONAL SITUATION REPORT // OFFICIAL BRIEFING</span>
+        <div class="flex items-center gap-2">
+          <button onclick="toggleSitRepLang()" class="px-3 py-1.5 rounded bg-dark-850 border border-dark-border hover:border-cyan-400 text-slate-300 text-xs transition">
+            <span id="sitrep-lang-label">LANG: ENGLISH / NEPALI</span>
+          </button>
+          <button onclick="window.print()" class="px-4 py-1.5 rounded bg-red-600 text-white font-bold uppercase text-xs hover:bg-red-500 transition shadow">
+            <i class="fa-solid fa-print mr-1"></i> PRINT HARDCOPY
+          </button>
+        </div>
+      </div>
+
+      <div id="printable-sitrep" class="bg-dark-900 border border-dark-border p-6 rounded-lg text-slate-200">
+        <div id="sitrep-content"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= MANDATORY FOOTER ================= -->
+  <footer class="border-t border-dark-border bg-dark-900/90 py-2.5 px-4 text-[10px] text-slate-400 mt-auto font-sans flex flex-col md:flex-row items-center justify-between gap-2">
+    <div>
+      Contains modified Copernicus Sentinel data 2026 &nbsp;|&nbsp; Produced using Copernicus WorldDEM-30 &nbsp;|&nbsp; © OpenStreetMap contributors
+    </div>
+    <div class="text-slate-500">
+      KuroSiwo Dataset (Bountos et al., 2024) &nbsp;|&nbsp; EMSR927 Protocol
+    </div>
+  </footer>
+
+  <!-- ================= EMBEDDED JAVASCRIPT ENGINE ================= -->
+  <script>
+    /* 1. Global Database */
+    const CRISIS_DATABASE = {
+      ndrrma_stats: {
+        confirmed_deaths: 1342,
+        missing: 4900,
+        severed_roads_km: 142.6,
+        severed_bridges_count: 14,
+        total_trapped_population: 15010,
+        displaced_persons: 38200
+      },
+      severed_bridges: [
+        { name: "Miteri Friendship Bridge", lat: 27.970, lng: 85.958, status: "TOTAL WASHOUT", impact: "Blocks Nepal-China Kodari Border Passage" },
+        { name: "Larcha Steel Bailey Span", lat: 27.954, lng: 85.943, status: "SUPERSTRUCTURE COLLAPSE", impact: "1,840 civilians completely severed" },
+        { name: "Chaku Khola Motorway Bridge", lat: 27.872, lng: 85.915, status: "ABUTMENT SCOUR / BREACH", impact: "Cuts Araniko Highway Primary Spine" },
+        { name: "Bahrabise Cable Bridge", lat: 27.789, lng: 85.898, status: "APPROACH DEBRIS INUNDATION", impact: "Blocks District Hospital Evacuation" },
+        { name: "Mailung Khola Span", lat: 27.995, lng: 85.250, status: "DEBRIS SURGE OVERWHELM", impact: "Blocks Trishuli Valley North Access" }
+      ],
+      isolated_villages: [
+        { name: "Tatopani Border Terminal", sub: "Upper Bhote Koshi", lat: 27.956, lng: 85.945, population: 3120, bridge: "Miteri Friendship Bridge (Destroyed)", hosp: "SEVERED (100% BLOCKED)", need: "Airlift Water Purification & Insulin" },
+        { name: "Larcha Sector", sub: "Bhote Koshi River", lat: 27.945, lng: 85.938, population: 1840, bridge: "Larcha Bailey (Swept Downstream)", hosp: "SEVERED (NO BYPASS)", need: "Emergency Military Bailey Erection" },
+        { name: "Bahrabise North Sector", sub: "Araniko Highway", lat: 27.805, lng: 85.905, population: 7450, bridge: "Chaku Khola Causeway Collapse", hosp: "6-Hour Mountain Footpath Only", need: "Field Surgical Triage Deployment" },
+        { name: "Syabrubesi Pocket", sub: "Trishuli Gorge", lat: 28.160, lng: 85.340, population: 2600, bridge: "Mailung Khola Landslide Dam Surge", hosp: "COMPLETELY BLOCKED", need: "High-Altitude Helicopter Rations" }
+      ]
+    };
+
+    /* 2. Tab Navigation with CSS Animation */
+    window.switchTab = function(tabId) {
+      const tabs = ['map-view', 'ai-copilot', 'network-tracer', 'validation', 'reports'];
+      tabs.forEach(id => {
+        const page = document.getElementById('page-' + id);
+        const btn = document.getElementById('tab-btn-' + id);
+        if (page) {
+          if (id === tabId) {
+            page.style.display = 'flex';
+            page.classList.remove('hidden');
+          } else {
+            page.style.display = 'none';
+            page.classList.add('hidden');
+          }
+        }
+        if (btn) {
+          if (id === tabId) {
+            btn.className = 'tab-btn px-4 py-1.5 rounded-md bg-blue-600 text-white font-medium text-xs flex items-center gap-2 shadow-sm shadow-blue-500/30 transition';
+          } else {
+            btn.className = 'tab-btn px-4 py-1.5 rounded-md bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-dark-border text-xs flex items-center gap-2 transition';
+          }
+        }
+      });
+
+      if (tabId === 'map-view' && window.map) {
+        setTimeout(() => window.map.invalidateSize(true), 150);
+      }
+    };
+
+    /* 3. Leaflet GIS Map Engine */
+    window.map = null;
+    let layerGroups = {
+      flood: L.layerGroup(),
+      avalanche: L.layerGroup(),
+      bridges: L.layerGroup(),
+      settlements: L.layerGroup(),
+      roads: L.layerGroup()
+    };
+    let satelliteTile, topoReliefTile;
+
+    function initMap() {
+      const el = document.getElementById('gis-map');
+      if (!el || typeof L === 'undefined') return;
+
+      if (window.map) window.map.remove();
+
+      window.map = L.map('gis-map', {
+        center: [27.935, 85.940],
+        zoom: 12.2,
+        minZoom: 3,
+        maxZoom: 18,
+        zoomControl: false,
+        attributionControl: false
+      });
+
+      satelliteTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        opacity: 0.85
+      }).addTo(window.map);
+
+      topoReliefTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 13,
+        opacity: 0.35
+      }).addTo(window.map);
+
+      drawGlacierCollapseZone();
+      drawFloodedZones();
+      drawSeveredBridges();
+      drawIsolatedSettlements();
+      drawBlockedRoads();
+
+      Object.values(layerGroups).forEach(lg => lg.addTo(window.map));
+
+      initVerticalSlider();
+
+      setTimeout(() => {
+        if (window.map) {
+          window.map.invalidateSize(true);
+          window.map.setView([27.935, 85.940], 12.2);
+        }
+      }, 250);
+    }
+
+    function drawGlacierCollapseZone() {
+      const avalanchePolygon = [
+        [27.995, 85.910], [27.980, 85.945], [27.955, 85.935], [27.970, 85.890], [27.995, 85.910]
+      ];
+      const poly = L.polygon(avalanchePolygon, {
+        color: '#ef4444',
+        weight: 2,
+        fillColor: '#ef4444',
+        fillOpacity: 0.45,
+        dashArray: '3, 3'
+      }).addTo(layerGroups.avalanche);
+
+      poly.bindTooltip('Avalanche/Glacier Collapse Zone', {
+        permanent: true,
+        direction: 'center',
+        className: 'pinned-geo-tag alert-red'
+      });
+    }
+
+    function drawFloodedZones() {
+      const riverFlow = [
+        [27.970, 85.930], [27.955, 85.938], [27.935, 85.925],
+        [27.905, 85.910], [27.870, 85.895], [27.840, 85.885],
+        [27.845, 85.895], [27.875, 85.908], [27.910, 85.925],
+        [27.940, 85.940], [27.960, 85.948], [27.970, 85.930]
+      ];
+      L.polygon(riverFlow, {
+        color: '#00d2ff',
+        weight: 2,
+        fillColor: '#2563eb',
+        fillOpacity: 0.55
+      }).addTo(layerGroups.flood);
+    }
+
+    function drawSeveredBridges() {
+      const bridgeCoords = [
+        [27.965, 85.940, "Casualty: 8 | Missing: 33"],
+        [27.950, 85.935, "Casualty: 131 | Missing: 33"],
+        [27.930, 85.920, "Tooltips: Casualty: 1,348 | Missing: 32"],
+        [27.900, 85.905, "Bahrabise Bridge Severed"],
+        [27.865, 85.890, "SunKoshi Confluence Breach"]
+      ];
+
+      bridgeCoords.forEach((b, index) => {
+        const marker = L.circleMarker([b[0], b[1]], {
+          radius: 6,
+          fillColor: '#ef4444',
+          color: '#ffffff',
+          weight: 2,
+          fillOpacity: 1
+        }).addTo(layerGroups.bridges);
+
+        if (index < 3) {
+          marker.bindTooltip(b[2], {
+            permanent: true,
+            direction: index === 0 ? 'top' : (index === 1 ? 'right' : 'bottom'),
+            className: 'pinned-geo-tag' + (index === 2 ? ' alert-blue' : '')
+          });
+        }
+      });
+    }
+
+    function drawIsolatedSettlements() {
+      const settlements = [
+        [[27.910, 85.885], [27.925, 85.900], [27.915, 85.915], [27.900, 85.895]],
+        [[27.885, 85.910], [27.895, 85.925], [27.880, 85.935], [27.870, 85.915]],
+        [[27.850, 85.920], [27.860, 85.930], [27.855, 85.945], [27.840, 85.930]]
+      ];
+      settlements.forEach(poly => {
+        L.polygon(poly, {
+          color: '#f59e0b',
+          weight: 1.5,
+          fillColor: '#d97706',
+          fillOpacity: 0.4
+        }).addTo(layerGroups.settlements);
+      });
+    }
+
+    function drawBlockedRoads() {
+      const roads = [
+        [[27.920, 85.870], [27.915, 85.895]],
+        [[27.875, 85.880], [27.865, 85.905]],
+        [[27.835, 85.900], [27.820, 85.920]]
+      ];
+      roads.forEach(r => {
+        L.polyline(r, {
+          color: '#ef4444',
+          weight: 3.5,
+          dashArray: '4, 4'
+        }).addTo(layerGroups.roads);
+      });
+    }
+
+    function initVerticalSlider() {
+      const track = document.getElementById('vertical-slider-track');
+      const thumb = document.getElementById('vertical-slider-thumb');
+      const label = document.getElementById('slider-percentage-label');
+      if (!track || !thumb) return;
+
+      let isDragging = false;
+
+      function updateSlider(clientY) {
+        const rect = track.getBoundingClientRect();
+        let y = clientY - rect.top;
+        y = Math.max(0, Math.min(rect.height, y));
+        const pct = Math.round((y / rect.height) * 100);
+        thumb.style.top = pct + '%';
+        if (label) label.innerText = pct;
+        if (satelliteTile) satelliteTile.setOpacity(0.3 + (pct / 100) * 0.7);
+      }
+
+      thumb.addEventListener('mousedown', () => { isDragging = true; });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      window.addEventListener('mousemove', (e) => {
+        if (isDragging) updateSlider(e.clientY);
+      });
+
+      thumb.addEventListener('touchstart', () => { isDragging = true; });
+      window.addEventListener('touchend', () => { isDragging = false; });
+      window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches[0]) updateSlider(e.touches[0].clientY);
+      });
+    }
+
+    function toggleLayer(type) {
+      if (!window.map) return;
+      if (window.map.hasLayer(layerGroups[type])) window.map.removeLayer(layerGroups[type]);
+      else window.map.addLayer(layerGroups[type]);
+    }
+
+    function resetToNepalAOI() {
+      if (window.map) window.map.flyTo([27.935, 85.940], 12.2, { animate: true, duration: 1.0 });
+    }
+
+    function toggleFullscreen() {
+      const el = document.getElementById('page-map-view');
+      if (!document.fullscreenElement) el.requestFullscreen().catch(() => {});
+      else document.exitFullscreen();
+    }
+
+    /* 4. Dynamic Model Presets */
+    let trainingChartInstance = null;
+    let currentModelPreset = 'finetuned';
+
+    const MODEL_PRESETS = {
+      finetuned: {
+        name: "S1+WorldDEM",
+        badge: "FINE-TUNED",
+        badgeClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+        iou: 0.842,
+        f1: 0.914,
+        speed: "3.24 s",
+        coherence: "-6.8 dB",
+        lossData: [0.68, 0.44, 0.31, 0.23, 0.18, 0.15, 0.138],
+        iouData: [0.45, 0.62, 0.72, 0.78, 0.81, 0.835, 0.842]
+      },
+      baseline: {
+        name: "Baseline KuroSiwo",
+        badge: "PRE-TRAINED",
+        badgeClass: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+        iou: 0.710,
+        f1: 0.785,
+        speed: "4.82 s",
+        coherence: "-4.2 dB",
+        lossData: [0.72, 0.56, 0.46, 0.38, 0.32, 0.29, 0.275],
+        iouData: [0.38, 0.49, 0.58, 0.64, 0.68, 0.702, 0.710]
+      },
+      otsu: {
+        name: "Otsu Threshold",
+        badge: "CONVENTIONAL",
+        badgeClass: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+        iou: 0.540,
+        f1: 0.660,
+        speed: "1.10 s",
+        coherence: "-1.8 dB",
+        lossData: [0.85, 0.78, 0.72, 0.69, 0.66, 0.64, 0.630],
+        iouData: [0.30, 0.38, 0.44, 0.48, 0.51, 0.530, 0.540]
+      }
+    };
+
+    window.selectModelPreset = function(presetKey) {
+      currentModelPreset = presetKey;
+      const preset = MODEL_PRESETS[presetKey];
+
+      ['finetuned', 'baseline', 'otsu'].forEach(key => {
+        const btn = document.getElementById('btn-model-' + key);
+        if (btn) {
+          if (key === presetKey) {
+            btn.className = 'flex-1 py-1 px-1.5 rounded bg-blue-600 text-white font-bold transition';
+          } else {
+            btn.className = 'flex-1 py-1 px-1.5 rounded text-slate-400 hover:text-white transition';
+          }
+        }
+      });
+
+      const badge = document.getElementById('model-status-badge');
+      if (badge) {
+        badge.innerText = preset.badge;
+        badge.className = `text-[10px] px-2 py-0.5 rounded border font-bold ${preset.badgeClass}`;
+      }
+
+      const slider = document.getElementById('epoch-slider');
+      if (slider) slider.value = 30;
+      const label = document.getElementById('epoch-label');
+      if (label) label.innerText = 'Epoch 30 / 30';
+
+      document.getElementById('metric-iou').innerText = preset.iou.toFixed(3);
+      document.getElementById('metric-f1').innerText = preset.f1.toFixed(3);
+      document.getElementById('metric-speed').innerText = preset.speed;
+      document.getElementById('metric-coherence').innerText = preset.coherence;
+
+      if (trainingChartInstance) {
+        trainingChartInstance.data.datasets[0].data = preset.lossData;
+        trainingChartInstance.data.datasets[1].data = preset.iouData;
+        trainingChartInstance.update();
+      }
+    };
+
+    window.updateTrainingEpoch = function(val) {
+      const epoch = parseInt(val);
+      const label = document.getElementById('epoch-label');
+      if (label) label.innerText = `Epoch ${epoch} / 30`;
+
+      const preset = MODEL_PRESETS[currentModelPreset];
+      const progress = (epoch - 1) / 29;
+
+      const startIou = preset.iouData[0];
+      const endIou = preset.iouData[preset.iouData.length - 1];
+      const currentIou = startIou + (endIou - startIou) * Math.pow(progress, 0.7);
+
+      const startLoss = preset.lossData[0];
+      const endLoss = preset.lossData[preset.lossData.length - 1];
+      const currentLoss = startLoss - (startLoss - endLoss) * Math.pow(progress, 0.7);
+
+      const currentF1 = 0.55 + (preset.f1 - 0.55) * progress;
+      const currentCoherence = (-2.0) + (parseFloat(preset.coherence) - (-2.0)) * progress;
+
+      document.getElementById('metric-iou').innerText = currentIou.toFixed(3);
+      document.getElementById('metric-f1').innerText = currentF1.toFixed(3);
+      document.getElementById('metric-coherence').innerText = currentCoherence.toFixed(1) + ' dB';
+
+      if (trainingChartInstance) {
+        const sliceIdx = Math.min(6, Math.floor((epoch / 30) * 7));
+        const subLoss = preset.lossData.slice(0, sliceIdx + 1);
+        const subIou = preset.iouData.slice(0, sliceIdx + 1);
+
+        trainingChartInstance.data.datasets[0].data = subLoss;
+        trainingChartInstance.data.datasets[1].data = subIou;
+        trainingChartInstance.update('none');
+      }
+    };
+
+    /* 5. Initialize Charts */
+    function initCharts() {
+      if (typeof Chart === 'undefined') return;
+      Chart.defaults.color = '#64748b';
+      Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+      Chart.defaults.font.family = 'JetBrains Mono, monospace';
+      Chart.defaults.font.size = 9;
+
+      const ctxMini = document.getElementById('miniElevationChart');
+      if (ctxMini) {
+        new Chart(ctxMini, {
+          type: 'line',
+          data: {
+            labels: ['0', '500', '1000', '1500', '2000', '2500', '3000', '3500', '3900'],
+            datasets: [{
+              label: 'Elevation (m)',
+              data: [5800, 4800, 4200, 3700, 3400, 3300, 3150, 3050, 2850],
+              borderColor: '#00d2ff',
+              backgroundColor: 'rgba(0, 210, 255, 0.15)',
+              borderWidth: 1.8,
+              fill: true,
+              pointRadius: 0,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { min: 2800, max: 6000, ticks: { stepSize: 1000 } }
+            }
+          }
+        });
+      }
+
+      const ctxElev = document.getElementById('elevationProfileChart');
+      if (ctxElev) {
+        new Chart(ctxElev, {
+          type: 'line',
+          data: {
+            labels: ['0 km (Glacier)', '12 km (Tatopani)', '24 km (Larcha)', '45 km (Bahrabise)', '68 km (Mailung)', '92 km (Trishuli Dam)', '110 km (Basin)'],
+            datasets: [{
+              label: 'Elevation Profile (m)',
+              data: [4500, 2600, 1850, 1020, 840, 680, 590],
+              borderColor: '#00d2ff',
+              backgroundColor: 'rgba(0, 210, 255, 0.15)',
+              borderWidth: 2,
+              fill: true,
+              pointRadius: 5,
+              pointBackgroundColor: ['#ef4444', '#f59e0b', '#f59e0b', '#f59e0b', '#f59e0b', '#10b981', '#00d2ff']
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+
+      const ctxLoss = document.getElementById('trainingLossChart');
+      if (ctxLoss) {
+        trainingChartInstance = new Chart(ctxLoss, {
+          type: 'line',
+          data: {
+            labels: ['Ep 1', 'Ep 5', 'Ep 10', 'Ep 15', 'Ep 20', 'Ep 25', 'Ep 30'],
+            datasets: [
+              { label: 'Loss (Dice+BCE)', data: [0.68, 0.44, 0.31, 0.23, 0.18, 0.15, 0.138], borderColor: '#00d2ff', borderWidth: 1.5, tension: 0.2 },
+              { label: 'IoU Score', data: [0.45, 0.62, 0.72, 0.78, 0.81, 0.835, 0.842], borderColor: '#10b981', borderDash: [3, 3], borderWidth: 1.5, tension: 0.2 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } }
+          }
+        });
+      }
+
+      const ctxBench = document.getElementById('modelBenchmarkChart');
+      if (ctxBench) {
+        new Chart(ctxBench, {
+          type: 'bar',
+          data: {
+            labels: ['Baseline Otsu SAR', 'Sentinel-2 Optical NDWI', 'EMSR927 Copernicus Ref', 'FloodOrbit AI (Ours)'],
+            datasets: [
+              { label: 'IoU Metric', data: [0.54, 0.61, 0.81, 0.842], backgroundColor: '#1e293b', borderColor: '#00d2ff', borderWidth: 1 },
+              { label: 'F1 Metric', data: [0.66, 0.73, 0.89, 0.914], backgroundColor: '#10b981' }
+            ]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+    }
+
+    /* 6. Terminal Copilot Engine */
+    let copilotLanguage = 'en';
+    function toggleCopilotLanguage() {
+      copilotLanguage = (copilotLanguage === 'en') ? 'ne' : 'en';
+      document.getElementById('copilot-lang-text').innerText = (copilotLanguage === 'en') ? 'LANGUAGE: EN' : 'LANGUAGE: NE (नेपाली)';
+    }
+
+    function sendQuickPrompt(txt) {
+      document.getElementById('copilot-input').value = txt;
+      executeCopilotQuery();
+    }
+
+    function executeCopilotQuery() {
+      const input = document.getElementById('copilot-input');
+      const query = input.value.trim();
+      if (!query) return;
+
+      const container = document.getElementById('chat-messages');
+      container.innerHTML += `<div class="p-3 rounded bg-dark-850 border border-dark-border text-slate-100"><span class="text-cyan-400 font-bold">&gt; USER:</span> ${query}</div>`;
+      input.value = '';
+
+      setTimeout(() => {
+        let res = (copilotLanguage === 'ne')
+          ? `<b>NDRRMA आधिकारिक तथ्यांक:</b> पुष्टि भएको मृत्यु: १,३४२ जना | बेपत्ता: ४,९०० जना | सडक विच्छेद: १४२.६ कि.मी. | बगाइएका पुलहरू: १४ वटा। लार्चा र तातोपानीमा ४,९६० नागरिक पूर्ण सम्पर्कविहीन छन्।`
+          : `<b>AUTHORITATIVE CASUALTY RECORD:</b> Confirmed Fatalities: 1,342 | Missing: 4,900 | Severed Corridor: 142.6 km | Bridges Demolished: 14. An aggregate of 15,010 civilians in Tatopani, Larcha, and Bahrabise have zero vehicular road bypass access.`;
+        container.innerHTML += `<div class="p-3 rounded bg-dark-950 border border-cyan-400/30 text-slate-200"><span class="text-emerald-400 font-bold">&gt; FLOODORBIT COPILOT:</span><br>${res}</div>`;
+        container.scrollTop = container.scrollHeight;
+      }, 200);
+    }
+
+    /* 7. Bilingual SitRep Generator */
+    let sitrepLang = 'en';
+    function toggleSitRepLang() {
+      sitrepLang = (sitrepLang === 'en') ? 'ne' : 'en';
+      document.getElementById('sitrep-lang-label').innerText = (sitrepLang === 'en') ? 'LANG: ENGLISH / NEPALI' : 'LANG: नेपाली / ENGLISH';
+      renderSitRep();
+    }
+
+    function renderSitRep() {
+      const el = document.getElementById('sitrep-content');
+      const db = CRISIS_DATABASE;
+      el.innerHTML = (sitrepLang === 'en') ? `
+        <div class="border-b border-dark-border pb-4 mb-4 flex justify-between items-start font-mono">
+          <div>
+            <div class="text-[10px] font-bold text-red-500 uppercase tracking-wider">RESTRICTED // NDRRMA BRIEFING</div>
+            <div class="text-lg font-bold text-white mt-0.5">SITUATION REPORT #04 — AUGUST 2026 NEPAL GLOF</div>
+            <div class="text-xs text-slate-400">Trishuli & Bhote Koshi Rapid Satellite Vectorization</div>
+          </div>
+          <div class="text-right text-xs text-slate-400">DATE: 18-AUG-2026<br>EMSR927 PROTOCOL</div>
+        </div>
+        <div class="grid grid-cols-4 gap-3 my-4 text-center font-mono">
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">DEAD</div><div class="text-xl font-bold text-red-500 mt-0.5">${db.ndrrma_stats.confirmed_deaths.toLocaleString()}</div></div>
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">MISSING</div><div class="text-xl font-bold text-blue-400 mt-0.5">${db.ndrrma_stats.missing.toLocaleString()}</div></div>
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">ROAD BREACH</div><div class="text-xl font-bold text-red-400 mt-0.5">${db.ndrrma_stats.severed_roads_km} km</div></div>
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">BRIDGES GONE</div><div class="text-xl font-bold text-amber-400 mt-0.5">${db.ndrrma_stats.severed_bridges_count} Units</div></div>
+        </div>
+        <div class="space-y-2.5 text-xs text-slate-300 font-sans leading-relaxed">
+          <div><b>1. SITUATION SUMMARY:</b> Moraine failure triggered rapid sediment slurry surge down the Bhote Koshi corridor. 15,010 civilians remain cut off across 4 isolated clusters with infinite routing cost to district hospitals.</div>
+          <div><b>2. INFRASTRUCTURE STATUS:</b> Trishuli Hydropower (85 MW) intake choked with 4.2M m³ gravel. Miteri and Larcha Bailey bridges washed away.</div>
+          <div><b>3. OPERATIONAL DIRECTIVE:</b> Deploy Army air wings for medical supply airdrops at Tatopani; deploy mobile Bailey bridging battalions to Larcha sector immediately.</div>
+        </div>
+      ` : `
+        <div class="border-b border-dark-border pb-4 mb-4 flex justify-between items-start font-mono">
+          <div>
+            <div class="text-[10px] font-bold text-red-500 uppercase tracking-wider">आपतकालीन विपद् वस्तुस्थिति प्रतिवेदन</div>
+            <div class="text-lg font-bold text-white mt-0.5">प्रतिवेदन संख्या #०४ — भदौ २०८३ बाढी तथा लेदो प्रवाह</div>
+            <div class="text-xs text-slate-400">त्रिशुली तथा भोटेकोशी जलाधार क्षेत्र उपग्रह विश्लेषण</div>
+          </div>
+          <div class="text-right text-xs text-slate-400">मिति: २०८३ भदौ २<br>स्रोत: NDRRMA / EMSR927</div>
+        </div>
+        <div class="grid grid-cols-4 gap-3 my-4 text-center font-mono">
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">मृत्यु पुष्टि</div><div class="text-xl font-bold text-red-500 mt-0.5">${db.ndrrma_stats.confirmed_deaths.toLocaleString()}</div></div>
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">बेपत्ता</div><div class="text-xl font-bold text-blue-400 mt-0.5">${db.ndrrma_stats.missing.toLocaleString()}</div></div>
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">सडक विच्छेद</div><div class="text-xl font-bold text-red-400 mt-0.5">${db.ndrrma_stats.severed_roads_km} कि.मी.</div></div>
+          <div class="p-3 rounded bg-dark-950 border border-dark-border"><div class="text-[10px] text-slate-400 uppercase">पुल क्षति</div><div class="text-xl font-bold text-amber-400 mt-0.5">${db.ndrrma_stats.severed_bridges_count} वटा</div></div>
+        </div>
+        <div class="space-y-2.5 text-xs text-slate-300 font-sans leading-relaxed">
+          <div><b>१. समग्र अवस्था:</b> हिमताल फुट्दा आएको बाढीले १४ वटा मुख्य पुलहरू बगाएको छ। १५,०१० नागरिकहरू पूर्ण रूपमा सडक सञ्जालबाट विच्छेद छन्।</div>
+          <div><b>२. तत्काल कदम:</b> तातोपानीमा हेलिकप्टरमार्फत औषधि खसाल्ने; लार्चामा तत्काल सेनामार्फत बेलीब्रिज जडान गर्ने।</div>
+        </div>
+      `;
+    }
+
+    function renderIsolatedVillagesTable() {
+      const tbody = document.getElementById('isolated-villages-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = CRISIS_DATABASE.isolated_villages.map(v => `
+        <tr class="hover:bg-dark-850/60 transition">
+          <td class="p-3 text-white font-semibold">${v.name}</td>
+          <td class="p-3 text-slate-400">${v.sub}</td>
+          <td class="p-3 text-red-400 font-bold font-mono">${v.population.toLocaleString()}</td>
+          <td class="p-3 text-amber-400">${v.bridge}</td>
+          <td class="p-3 text-slate-300">${v.hosp}</td>
+          <td class="p-3 text-cyan-400 font-medium">${v.need}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Bootstrap
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      initCharts();
+      renderIsolatedVillagesTable();
+      renderSitRep();
+      window.switchTab('map-view');
+    });
+  </script>
+</body>
+</html>

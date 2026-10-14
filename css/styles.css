@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+html, body {
+  background-color: #06080d;
+  color: #d1d5db;
+  font-family: 'JetBrains Mono', monospace;
+  overflow-x: hidden;
+}
+
+* {
+  border-radius: 0px !important;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #06080d;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f2b42;
+}
+
+/* Explicit Dimensions on Map Element */
+#gis-map {
+  width: 100% !important;
+  height: 750px !important;
+  min-height: 750px !important;
+  background-color: #06080d !important;
+  display: block !important;
+  position: relative !important;
+}
+
+/* Popups */
+.leaflet-popup-content-wrapper {
+  background-color: rgba(11, 15, 25, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #00d2ff !important;
+  font-size: 11px !important;
+}
+.leaflet-popup-tip {
+  background-color: rgba(11, 15, 25, 0.95) !important;
+  border: 1px solid #00d2ff !important;
+}
+
+.leaflet-bar a {
+  background-color: #0b0f19 !important;
+  color: #00d2ff !important;
+  border: 1px solid #1f2b42 !important;
+}
